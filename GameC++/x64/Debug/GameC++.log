@@ -1,0 +1,8 @@
+﻿MSVCRTD.lib(initializers.obj) : warning LNK4098: defaultlib 'msvcrt.lib' conflicts with use of other libs; use /NODEFAULTLIB:library
+SDLmain.lib(SDL_win32_main.obj) : error LNK2019: unresolved external symbol SDL_main referenced in function main
+    Hint on symbols that are defined and could potentially match:
+      "int __cdecl SDL_main(int,int * const)" (?SDL_main@@YAHHQEAH@Z)
+SDLmain.lib(SDL_win32_main.obj) : error LNK2019: unresolved external symbol __imp_fprintf referenced in function ShowError
+SDLmain.lib(SDL_win32_main.obj) : error LNK2019: unresolved external symbol __imp___iob_func referenced in function ShowError
+C:\Users\Admin\OneDrive\Desktop\SDL.code\Game\GameC++\SDL\SDL_image_1_2_4\lib\SDL_image.lib : warning LNK4272: library machine type 'x86' conflicts with target machine type 'x64'
+C:\Users\Admin\OneDrive\Desktop\SDL.code\Game\GameC++\x64\Debug\GameC++.exe : fatal error LNK1120: 3 unresolved externals
