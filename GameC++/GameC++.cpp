@@ -1,17 +1,16 @@
-﻿#include<iostream>
+#include<iostream>
 #include <SDL.h>
 #include <SDL_image.h>
 #include <string>
 #include <fstream>
 #include<SDL_mixer.h>
-#include<stdio.h>
-//#include <unistd.h>
 
 using namespace std;
 
 SDL_Window* gWindow = NULL;
 SDL_Renderer* gRenderer = NULL;
 
+Mix_Chunk* gPress = NULL;
 Mix_Chunk* gTouch = NULL;
 Mix_Music* gMusicGame = NULL;
 
@@ -26,15 +25,15 @@ const int TILE_HEIGHT = 32;
 const int TOTAL_TILES = 2000;
 const int TOTAL_TILE_SPRITES = 247;
 
-class LTexture {
+class LText {
 public:
-	LTexture();
-	~LTexture();
+	LText();
+	~LText();
 	bool loadFromFile(string path);
 	void free();
 	void render(int x, int y, SDL_Rect* clip = NULL);
 private:
-	SDL_Texture* mTexture;
+	SDL_Texture* mText;
 	int mWidth;
 	int mHeight;
 };
@@ -57,6 +56,10 @@ public:
 	static const int DOT_VEL = 2;
 	int getPosY() { return mBox.y; }
 	int getPosX() { return mBox.x; }
+	void dotReplay() {
+		mBox.x = 0;
+		mBox.y = 160;
+	}
 	Dot();
 	void handleEvent(SDL_Event& e);
 	void move(Tile* tiles[]);
@@ -74,27 +77,27 @@ bool checkCollision(SDL_Rect a, SDL_Rect b);
 bool touchesWall(SDL_Rect box, Tile* tiles[]);
 bool setTiles(Tile* tiles[]);
 
-LTexture::LTexture() {
-	mTexture = NULL;
+LText::LText() {
+	mText = NULL;
 	mWidth = 0;
 	mHeight = 0;
 }
 
-LTexture::~LTexture() {
+LText::~LText() {
 	free();
 }
 
-bool LTexture::loadFromFile(string path) {
+bool LText::loadFromFile(string path) {
 	free();
-	SDL_Texture* newTexture = NULL;
+	SDL_Texture* newText = NULL;
 	SDL_Surface* loadedSurface = IMG_Load(path.c_str());
 	if (loadedSurface == NULL) {
 		cout << "LoadFromFile Surface" << path.c_str() << IMG_GetError()<<endl;
 	}
 	else {
-		newTexture = SDL_CreateTextureFromSurface(gRenderer, loadedSurface);
-		if (newTexture == NULL) {
-			cout << "LoadFromFile newTexture " << path.c_str() << SDL_GetError()<<endl;
+		newText = SDL_CreateTextureFromSurface(gRenderer, loadedSurface);
+		if (newText == NULL) {
+			cout << "LoadFromFile new Texture " << path.c_str() << SDL_GetError()<<endl;
 		}
 		else {
 			mWidth = loadedSurface->w;
@@ -102,34 +105,34 @@ bool LTexture::loadFromFile(string path) {
 		}
 		SDL_FreeSurface(loadedSurface);
 	}
-	mTexture = newTexture;
-	return mTexture != NULL;
+	mText = newText;
+	return mText != NULL;
 }
 
-void LTexture::free() {
-	if (mTexture != NULL) {
-		SDL_DestroyTexture(mTexture);
-		mTexture = NULL;
+void LText::free() {
+	if (mText != NULL) {
+		SDL_DestroyTexture(mText);
+		mText = NULL;
 		mWidth = 0;
 		mHeight = 0;
 	}
 }
 
-void LTexture::render(int x, int y, SDL_Rect* clip) {
+void LText::render(int x, int y, SDL_Rect* clip) {
 	SDL_Rect renderQuad = { x,y,mWidth,mHeight };
 	if (clip != NULL) {
 		renderQuad.w = clip->w;
 		renderQuad.h = clip->h;
 	}
-	SDL_RenderCopy(gRenderer, mTexture, clip, &renderQuad);
+	SDL_RenderCopy(gRenderer, mText, clip, &renderQuad);
 }
 
-LTexture youLose;
-LTexture k;
-LTexture youWin;
-LTexture gDot;
-LTexture gTile;
-LTexture start;
+LText youLose;
+LText k;
+LText youWin;
+LText gDot;
+LText gTile;
+LText start;
 
 SDL_Rect gTileClips[TOTAL_TILE_SPRITES];
 
@@ -263,6 +266,11 @@ bool loadMusic() {
 		cerr << "Failed to load touch sound! SDL_mixer Error: " << Mix_GetError() << endl;
 		success = false;
 	}
+	gPress = Mix_LoadWAV("music/press.mp3");
+	if (gPress == NULL) {
+		cerr << "Failed to load press sound! SDL_mixer Error: " << Mix_GetError() << endl;
+		success = false;
+	}
 	gMusicGame = Mix_LoadMUS("music/gameMusic2.0.mp3");
 	if (gMusicGame == NULL) {
 		cerr << "Failed to load Music game! SDL_mixer Error: " << Mix_GetError() << endl;
@@ -288,7 +296,7 @@ bool loadMedia(Tile* tiles[]) {
 		cerr << "Failed to load tile map!\n";
 		success = false;
 	}
-	if (!start.loadFromFile("image/start.bmp")) {
+	if (!start.loadFromFile("image/gameStart.bmp")) {
 		cerr << "Failed to load image start!\n";
 		success = false;
 	}
@@ -392,6 +400,7 @@ bool setTiles(Tile* tiles[]) {
 				gTileClips[i].w = TILE_WIDTH;
 				gTileClips[i].h = TILE_HEIGHT;
 				xPos += 32;
+
 				if (xPos >= 608) {
 					xPos = 0;
 					yPos += 32;
@@ -435,6 +444,7 @@ void startGame() {
 		SDL_RenderPresent(gRenderer);
 		while (SDL_PollEvent(&e) != 0) {
 			if (e.type == SDL_KEYDOWN) {
+				Mix_PlayChannel(-1, gPress, 0);
 				if (e.key.keysym.sym == SDLK_r) {
 					quit = true;
 					start.free();
@@ -451,7 +461,8 @@ void gameKey() {
 		k.render(0, 0);
 		SDL_RenderPresent(gRenderer);
 		while (SDL_PollEvent(&e) != 0) {
-			if (e.type == SDL_KEYDOWN) {
+			if (e.type == SDL_KEYDOWN||e.type==SDL_QUIT) {
+				Mix_PlayChannel(-1, gPress, 0);
 				if (e.key.keysym.sym == SDLK_SPACE) {
 					quit = true;
 					k.free();
@@ -459,6 +470,7 @@ void gameKey() {
 			}
 		}
 	}
+	return;
 }
 
 void gameOver() {
@@ -469,11 +481,13 @@ void gameOver() {
 		SDL_RenderPresent(gRenderer);
 		while (SDL_PollEvent(&e) != 0) {
 			if (e.type == SDL_KEYDOWN || e.type == SDL_QUIT) {
+				Mix_PlayChannel(-1, gPress, 0);
 				quit = true;
 				youLose.free();
 			}
 		}
 	}
+	return;
 }
 
 void gameWin() {
@@ -491,7 +505,6 @@ void gameWin() {
 		}
 	}
 }
-
 int main(int argc, char* args[]) {
 
 	if (!init()) {
@@ -507,13 +520,13 @@ int main(int argc, char* args[]) {
 			cerr << "Failed to load media!\n";
 		}
 		else {
+			Mix_PlayMusic(gMusicGame, -1);
 			startGame();
 			gameKey();
 			bool quit = false;
 			SDL_Event e;
 			Dot dot;
 			SDL_Rect camera = { 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT };
-			Mix_PlayMusic(gMusicGame, -1);
 			while (!quit) {
 				while (SDL_PollEvent(&e) != 0) {
 					if (e.type == SDL_QUIT) {
